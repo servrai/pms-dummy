@@ -1,0 +1,4 @@
+/pms-dummy
+*.db
+*.db-wal
+*.db-shm

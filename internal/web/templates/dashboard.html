@@ -1,0 +1,37 @@
+{{define "content"}}
+<h1>Dashboard</h1>
+
+<div class="stats">
+  <div class="stat"><b>{{.InboundTotal}}</b><span>inbound deliveries</span></div>
+  <div class="stat"><b>{{.InboundSynced}}</b><span>synced</span></div>
+  <div class="stat"><b>{{.InboundErrored}}</b><span>errors</span></div>
+  <div class="stat"><b>{{.OutboundTotal}}</b><span>outbound events</span></div>
+  <div class="stat"><b>{{.ResvLocal}} / {{.ResvSynced}} / {{.ResvError}}</b><span>reservations local / synced / error</span></div>
+  <div class="stat"><b>{{.RoomTotal}}</b><span>rooms</span></div>
+</div>
+
+<div class="card">
+  <h2>Sync status</h2>
+  <table>
+    <tr><th>Last inbound delivery</th><td>{{if .LastInbound}}{{.LastInbound}}{{else}}never{{end}}</td></tr>
+    <tr><th>Last outbound event</th><td>{{if .LastOutbound}}{{.LastOutbound}} (HTTP {{.LastOutboundStatus}}){{else}}never{{end}}</td></tr>
+    <tr><th>This PMS</th><td>{{if .OwnBase}}{{.OwnBase}}{{else}}(base URL not configured via PMS_DUMMY_OWN_BASE_URL){{end}}</td></tr>
+  </table>
+  <p><a href="/logs/actions">Inbound activity log</a> · <a href="/logs/events">Outbound events log</a> · <a href="/settings">Webhook settings</a></p>
+</div>
+
+<div class="card">
+  <h2>What this polygon is</h2>
+  <p>pms-dummy is a disposable cloud-PMS implementing servr.ai's
+  <a href="https://api-dev.servr.ai/docs/guides/pms-webhook.html" rel="noopener">PMS webhook contract</a>:
+  it receives servr's signed action deliveries (<code>POST /actions</code>), answers reservation reads
+  (<code>GET /pms/reservations/{booking_ref}</code>), and sends signed events back
+  (<code>reservation.sync</code>, <code>reservation.record</code>, <code>reservation.deleted</code>,
+  <code>action.confirm</code>).</p>
+  <p>To wire it into dev: Hotel Settings → Integrations → PMS, mode <em>Webhook</em>, base URL of this host,
+  the two paths and the signing secret from <a href="/settings">Webhook settings</a>.</p>
+  <p>The same integration also ships an <a href="https://api-dev.servr.ai/docs/guides/pms-rpa.html" rel="noopener">RPA transport</a>
+  for on-premise PMSes — an adapter on a hotel PC polls five endpoints instead of webhooks. pms-dummy mirrors
+  the webhook lane only; use it to test signatures, deliveries, retries and both event directions.</p>
+</div>
+{{end}}

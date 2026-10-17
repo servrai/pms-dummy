@@ -1,0 +1,63 @@
+{{define "content"}}
+{{$r := .View}}
+<h1>Reservation {{$r.BookingRef}}</h1>
+{{if .Msg}}<p class="flash">{{.Msg}}</p>{{end}}
+
+<div class="card">
+  <h2>Stay</h2>
+  <table>
+    <tr><th>Status</th><td><span class="badge {{$r.Status}}">{{$r.Status}}</span></td></tr>
+    <tr><th>Sync status</th><td><span class="badge {{$r.SyncStatus}}">{{$r.SyncStatus}}</span>{{if $r.LastSyncedAt}} ({{$r.LastSyncedAt}}){{end}}</td></tr>
+    <tr><th>Guest</th><td>{{$r.GuestName}} · {{$r.NationCode}} · {{$r.GuestEmail}} · {{$r.GuestPhone}}</td></tr>
+    <tr><th>Dates</th><td>{{$r.ArrivalDate}} → {{$r.DepartureDate}}</td></tr>
+    <tr><th>Room</th><td>{{if $r.RoomNumber}}{{$r.RoomNumber}}{{else}}unassigned{{end}}</td></tr>
+    <tr><th>Occupancy</th><td>{{$r.Adults}} adults, {{$r.Children}} children, {{$r.RoomQuantity}} room(s)</td></tr>
+    <tr><th>Rate</th><td>{{$r.RoomRate}} {{$r.RateCode}}</td></tr>
+    <tr><th>Group</th><td>{{if $r.GroupCode}}{{$r.GroupCode}}{{else}}—{{end}}</td></tr>
+    <tr><th>Remark</th><td>{{if $r.Remark}}{{$r.Remark}}{{else}}—{{end}}</td></tr>
+    <tr><th>Checked in at</th><td>{{if $r.CheckedInAt}}{{$r.CheckedInAt}}{{else}}—{{end}}</td></tr>
+    <tr><th>Checked out at</th><td>{{if $r.CheckedOutAt}}{{$r.CheckedOutAt}} by {{if $r.CheckedOutBy}}{{$r.CheckedOutBy}}{{else}}—{{end}}{{else}}—{{end}}</td></tr>
+    <tr><th>Cancelled at</th><td>{{if $r.CancelledAt}}{{$r.CancelledAt}} ({{if $r.CancelReasonCode}}{{$r.CancelReasonCode}}: {{end}}{{if $r.CancelReasonText}}{{$r.CancelReasonText}}{{end}}){{else}}—{{end}}</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Local staff actions</h2>
+  <p class="muted">These mutate pms-dummy directly — the PMS side of the world, like a front desk would.</p>
+  <div class="row">
+    <form method="post" action="/reservations/check-in" class="inline">
+      <input type="hidden" name="id" value="{{$r.ID}}">
+      <button {{if ne $r.Status "Reserved"}}disabled{{end}}>Check in</button>
+    </form>
+    <form method="post" action="/reservations/checkout" class="inline">
+      <input type="hidden" name="id" value="{{$r.ID}}">
+      <button {{if ne $r.Status "CheckedIn"}}disabled{{end}}>Check out</button>
+    </form>
+    <form method="post" action="/reservations/cancel" class="inline row">
+      <input type="hidden" name="id" value="{{$r.ID}}">
+      <input name="cancel_reason_code" placeholder="reason code" size="10">
+      <input name="cancel_reason_text" placeholder="reason text">
+      <button {{if or (eq $r.Status "Cancelled") (eq $r.Status "CheckedOut")}}disabled{{end}}>Cancel</button>
+    </form>
+    <a class="btn" href="/reservations?edit={{$r.ID}}">Edit</a>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Push to servr</h2>
+  <p class="muted">Signed outbound events for this reservation (see the <a href="/logs/events">events log</a>).</p>
+  <div class="row">
+    <form method="post" action="/outbound/send" class="inline">
+      <input type="hidden" name="event" value="reservation.record">
+      <input type="hidden" name="ref" value="{{$r.BookingRef}}">
+      <button class="primary">Send reservation.record</button>
+    </form>
+    <form method="post" action="/outbound/send" class="inline">
+      <input type="hidden" name="event" value="reservation.deleted">
+      <input type="hidden" name="ref" value="{{$r.ReservationNumber}}">
+      <button>Send reservation.deleted</button>
+    </form>
+  </div>
+</div>
+<p><a class="btn" href="/reservations">Back to reservations</a></p>
+{{end}}

@@ -1,0 +1,50 @@
+{{define "content"}}
+<h1>Outbound events</h1>
+{{if .Msg}}<p class="flash">{{.Msg}}</p>{{end}}
+
+<div class="card">
+  <h2>Target</h2>
+  <p>Signed events go to <code>{{.TargetURL}}</code> — configured on the
+  <a href="/settings">Webhook settings</a> page. To self-test the sender without touching servr,
+  point the base URL at <code>…/dev</code> with hotel code <code>echo</code>: the
+  <code>/dev/echo</code> endpoint verifies the signature with the same secret and answers like servr.</p>
+</div>
+
+<div class="card">
+  <h2>Push full manifest</h2>
+  <p class="muted">Sends every reservation and room to servr as <code>reservation.sync</code> —
+  the "booking sync" push described in the
+  <a href="https://api-dev.servr.ai/docs/guides/pms-webhook.html" rel="noopener">webhook guide</a>.</p>
+  <form method="post" action="/outbound/send">
+    <input type="hidden" name="event" value="reservation.sync">
+    <button class="primary">Send reservation.sync</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Single reservation</h2>
+  <form method="post" action="/outbound/send" class="grid">
+    <label>Booking ref (e.g. 33944-1)
+      <input name="ref" required placeholder="33944-1">
+    </label>
+    <label>Event
+      <select name="event">
+        <option value="reservation.record">reservation.record — push full record</option>
+        <option value="reservation.deleted">reservation.deleted — cancel on servr (pre-arrival)</option>
+      </select>
+    </label>
+    <div class="wide"><button class="primary">Send</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Confirm an action</h2>
+  <p class="muted">Async close of a delivery servr is waiting on (rarely needed in webhook mode;
+  mostly for replaying semantics by hand).</p>
+  <form method="post" action="/outbound/send" class="grid">
+    <label>request_id <input name="request_id" required placeholder="f79fafb2-…"></label>
+    <input type="hidden" name="event" value="action.confirm">
+    <div class="wide"><button>Send action.confirm</button></div>
+  </form>
+</div>
+{{end}}

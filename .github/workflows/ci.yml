@@ -1,0 +1,26 @@
+# CI: vet + unit tests + build. Runs on the dev2 self-hosted runner inside a
+# golang container — the host has no Go toolchain by design.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: [self-hosted, servr-dev2]
+    timeout-minutes: 15
+    container: golang:1.26
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 1}
+      - name: go vet
+        run: go vet ./...
+      - name: unit tests
+        run: go test ./internal/... -count=1
+      - name: build
+        run: go build ./...

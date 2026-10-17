@@ -1,0 +1,67 @@
+{{define "content"}}
+<h1>Reservations</h1>
+{{if .Msg}}<p class="flash">{{.Msg}}</p>{{end}}
+
+{{if or .FormNew .Edit}}
+<section class="card">
+  <h2>{{if .Edit}}Edit {{.Edit.BookingRef}}{{else}}New reservation{{end}}</h2>
+  <form method="post" action="/reservations/save" class="grid">
+    {{if .Edit}}<input type="hidden" name="id" value="{{.Edit.ID}}">{{end}}
+    <label>Reservation number <input name="reservation_number" required value="{{if .Edit}}{{.Edit.ReservationNumber}}{{end}}"></label>
+    <label>Line number (1–99) <input name="line_number" type="number" min="1" max="99" value="{{if .Edit}}{{.Edit.LineNumber}}{{else}}1{{end}}"></label>
+    <label>Guest first name <input name="guest_first_name" value="{{if .Edit}}{{.Edit.GuestFirstName}}{{end}}"></label>
+    <label>Guest surname <input name="guest_surname" value="{{if .Edit}}{{.Edit.GuestSurname}}{{end}}"></label>
+    <label>Email <input name="guest_email" type="email" value="{{if .Edit}}{{.Edit.GuestEmail}}{{end}}"></label>
+    <label>Phone <input name="guest_phone" value="{{if .Edit}}{{.Edit.GuestPhone}}{{end}}"></label>
+    <label>Nation code <input name="nation_code" value="{{if .Edit}}{{.Edit.NationCode}}{{end}}" placeholder="ID"></label>
+    <label>Arrival date <input name="arrival_date" type="date" required value="{{if .Edit}}{{.Edit.ArrivalDate}}{{end}}"></label>
+    <label>Departure date <input name="departure_date" type="date" required value="{{if .Edit}}{{.Edit.DepartureDate}}{{end}}"></label>
+    <label>Room
+      <select name="room_number">
+        <option value="">— unassigned —</option>
+        {{$cur := ""}}{{if .Edit}}{{$cur = .Edit.RoomNumber}}{{end}}
+        {{range .Rooms}}<option value="{{.Number}}" {{if eq .Number $cur}}selected{{end}}>{{.Number}} ({{.Status}})</option>{{end}}
+      </select>
+    </label>
+    <label>Adults <input name="adults" type="number" min="1" value="{{if .Edit}}{{.Edit.Adults}}{{else}}1{{end}}"></label>
+    <label>Children <input name="children" type="number" min="0" value="{{if .Edit}}{{.Edit.Children}}{{else}}0{{end}}"></label>
+    <label>Room quantity <input name="room_quantity" type="number" min="1" value="{{if .Edit}}{{.Edit.RoomQuantity}}{{else}}1{{end}}"></label>
+    <label>Room rate amount <input name="room_rate" type="number" step="0.01" value="{{if .Edit}}{{.Edit.RoomRate}}{{else}}0{{end}}"></label>
+    <label>Rate code <input name="rate_code" value="{{if .Edit}}{{.Edit.RateCode}}{{end}}"></label>
+    <label>Group code <input name="group_code" value="{{if .Edit}}{{.Edit.GroupCode}}{{end}}"></label>
+    <label class="wide">Remark <textarea name="remark">{{if .Edit}}{{.Edit.Remark}}{{end}}</textarea></label>
+    <div class="wide">
+      <button class="primary" type="submit">Save reservation</button>
+      <a class="btn" href="/reservations">Cancel</a>
+    </div>
+  </form>
+</section>
+
+{{else}}
+
+<table>
+  <tr><th>Booking ref</th><th>Guest</th><th>Arrival</th><th>Departure</th><th>Room</th><th>Status</th><th>Sync</th><th></th></tr>
+  {{range .Reservations}}
+  <tr>
+    <td><a href="/reservations?id={{.ID}}">{{.BookingRef}}</a></td>
+    <td>{{.GuestName}}</td>
+    <td>{{.ArrivalDate}}</td>
+    <td>{{.DepartureDate}}</td>
+    <td>{{if .RoomNumber}}{{.RoomNumber}}{{else}}—{{end}}</td>
+    <td><span class="badge">{{.Status}}</span></td>
+    <td><span class="badge {{.SyncStatus}}">{{.SyncStatus}}</span></td>
+    <td class="actions">
+      <a class="btn" href="/reservations?edit={{.ID}}">Edit</a>
+      <form method="post" action="/reservations/delete" class="inline">
+        <input type="hidden" name="id" value="{{.ID}}">
+        <button>Delete</button>
+      </form>
+    </td>
+  </tr>
+  {{else}}
+  <tr><td colspan="8" class="muted">No reservations yet.</td></tr>
+  {{end}}
+</table>
+<p><a class="btn" href="/reservations?form=new">New reservation</a></p>
+{{end}}
+{{end}}

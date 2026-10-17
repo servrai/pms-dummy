@@ -1,0 +1,48 @@
+{{define "content"}}
+<h1>Rooms</h1>
+{{if .Msg}}<p class="flash">{{.Msg}}</p>{{end}}
+
+{{if or .FormNew .Edit}}
+<section class="card">
+  <h2>{{if .Edit}}Edit room {{.Edit.Number}}{{else}}New room{{end}}</h2>
+  <form method="post" action="/rooms/save">
+    {{if .Edit}}<input type="hidden" name="id" value="{{.Edit.ID}}">{{end}}
+    <label>Number <input name="number" required value="{{if .Edit}}{{.Edit.Number}}{{end}}"></label>
+    <label>Status
+      <select name="status">
+        {{$cur := ""}}{{if .Edit}}{{$cur = .Edit.Status}}{{end}}
+        {{range .Statuses}}
+          <option value="{{.}}" {{if eq . $cur}}selected{{end}}>{{.}}</option>
+        {{end}}
+      </select>
+    </label>
+    <label>Category <input name="category" value="{{if .Edit}}{{.Edit.Category}}{{end}}"></label>
+    <label>Floor <input name="floor" type="number" value="{{if .Edit}}{{.Edit.Floor}}{{else}}0{{end}}"></label>
+    <button class="primary" type="submit">Save room</button>
+    <a class="btn" href="/rooms">Cancel</a>
+  </form>
+</section>
+{{end}}
+
+<table>
+  <tr><th>Number</th><th>Status</th><th>Category</th><th>Floor</th><th></th></tr>
+  {{range .Rooms}}
+  <tr>
+    <td>{{.Number}}</td>
+    <td><span class="badge">{{.Status}}</span></td>
+    <td>{{.Category}}</td>
+    <td>{{.Floor}}</td>
+    <td class="actions">
+      <a class="btn" href="/rooms?edit={{.ID}}">Edit</a>
+      <form method="post" action="/rooms/delete" class="inline">
+        <input type="hidden" name="id" value="{{.ID}}">
+        <button>Delete</button>
+      </form>
+    </td>
+  </tr>
+  {{else}}
+  <tr><td colspan="5" class="muted">No rooms yet.</td></tr>
+  {{end}}
+</table>
+<p><a class="btn" href="/rooms?form=new">New room</a></p>
+{{end}}

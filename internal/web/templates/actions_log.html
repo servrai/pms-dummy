@@ -1,0 +1,26 @@
+{{define "content"}}
+<h1>Inbound activity log</h1>
+<p class="muted">Deliveries servr sent to this PMS (newest first, max 200). Every row is one
+<code>POST {deliveries path}</code> with the exact wire payload. Replays of a known
+<code>request_id</code> are recorded as <span class="badge duplicate">duplicate</span> and answered
+with the original outcome.</p>
+<table class="log">
+  <tr><th>#</th><th>Received</th><th>Type</th><th>Address</th><th>Status</th><th>HTTP</th><th>Error</th><th>Payload</th></tr>
+  {{range .Actions}}
+  <tr>
+    <td>{{.ID}}</td>
+    <td>{{.ReceivedAt}}</td>
+    <td><code>{{.ActionType}}</code></td>
+    <td>{{if .ReservationNumber}}{{.ReservationNumber}}{{if .LineNumber}}-{{.LineNumber}}{{end}}{{else}}{{.BookingRef}}{{end}}</td>
+    <td><span class="badge {{.Status}}">{{.Status}}</span></td>
+    <td>{{if .HTTPStatus}}{{.HTTPStatus}}{{else}}—{{end}}</td>
+    <td>{{if .ErrorCode}}<code>{{.ErrorCode}}</code> {{.ErrorMessage}}{{else}}{{.ErrorMessage}}{{end}}</td>
+    <td>
+      <details><summary>request_id {{.RequestID}}</summary><pre>{{.PayloadJSON}}</pre></details>
+    </td>
+  </tr>
+  {{else}}
+  <tr><td colspan="8" class="muted">Nothing received yet.</td></tr>
+  {{end}}
+</table>
+{{end}}

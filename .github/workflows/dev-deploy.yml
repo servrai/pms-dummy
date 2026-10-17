@@ -1,0 +1,168 @@
+# Dev pipeline: build + deploy to the dev target, then blackbox e2e against
+# the live public URL. Mirrors the servr-frontend dev-deploy pattern.
+name: dev deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  packages: write
+  deployments: write
+
+concurrency:
+  group: dev-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ── build: main push → :dev rolling + :sha; PR → :pr-<n> + :sha ──
+  build-dev:
+    name: build dev
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' &&
+       github.event.action != 'closed' &&
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: [self-hosted, servr-dev2]
+    concurrency:
+      # Serialize same-repo builds: the single named buildx builder cannot
+      # boot under a concurrent job.
+      group: buildx-pms-dummy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+          name: pms-dummy-builder
+          cleanup: false
+          buildkitd-config-inline: |
+            [worker.oci]
+              gc = true
+              max-parallelism = 4
+            [[worker.oci.gcpolicy]]
+              all = true
+              reservedSpace = "10GB"
+              maxUsedSpace = "20GB"
+      - uses: docker/login-action@v3
+        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
+      - name: Derive tags
+        id: tags
+        run: |
+          repo_lc=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "dev=ghcr.io/${repo_lc}:pr-${{ github.number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "dev=ghcr.io/${repo_lc}:dev" >> "$GITHUB_OUTPUT"
+          fi
+          echo "sha=ghcr.io/${repo_lc}:sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          provenance: false
+          cache-from: type=local,src=/home/dcversus/.buildx-cache/pms-dummy
+          cache-to: type=local,dest=/home/dcversus/.buildx-cache/pms-dummy,mode=max,reset=true
+          tags: |
+            ${{ steps.tags.outputs.dev }}
+            ${{ steps.tags.outputs.sha }}
+
+  deploy-dev:
+    name: deploy dev
+    if: github.event_name == 'push'
+    needs: build-dev
+    runs-on: [self-hosted, servr-dev2]
+    environment: dev
+    concurrency:
+      group: dev-rollout
+      cancel-in-progress: true
+    env: { SERVR_HOME: /home/dcversus/servr-dev }
+    steps:
+      - name: GHCR login (pull)
+        run: |
+          docker logout ghcr.io || true
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Pull & restart pms-dummy
+        run: |
+          repo_lc=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          cd "$SERVR_HOME"
+          # Deploy THIS run's immutable :sha tag — the mutable :dev tag can be
+          # overwritten by an out-of-order build.
+          docker pull "ghcr.io/${repo_lc}:sha-${GITHUB_SHA::7}"
+          # Retag onto the image ref the VM's compose file pins, then roll.
+          svc_image=$(docker compose config pms-dummy 2>/dev/null | sed -n 's/^ *image: *//p' | head -1)
+          [ -n "$svc_image" ] || svc_image="ghcr.io/${repo_lc}:dev"
+          docker tag "ghcr.io/${repo_lc}:sha-${GITHUB_SHA::7}" "$svc_image"
+          docker compose up -d --no-deps pms-dummy
+          # Gate 1 — the container must run THIS run's image.
+          want_id=$(docker image inspect "ghcr.io/${repo_lc}:sha-${GITHUB_SHA::7}" --format '{{.Id}}')
+          got_id=$(docker inspect "$(docker compose ps -q pms-dummy)" --format '{{.Image}}')
+          if [ "$want_id" != "$got_id" ]; then
+            echo "rollout no-op: pms-dummy runs ${got_id}, expected ${want_id}" >&2
+            exit 1
+          fi
+          # Gate 2 — readiness (the container listens on :80).
+          for i in $(seq 1 20); do
+            if docker compose exec -T pms-dummy wget -qO- http://127.0.0.1/healthz >/dev/null 2>&1; then echo "ok"; exit 0; fi
+            sleep 3
+          done
+          echo "pms-dummy not ready" >&2; exit 1
+
+  # ── PR preview: latest deploy wins on the shared dev box ──
+  deploy-dev-pr:
+    name: deploy preview
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action != 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    needs: build-dev
+    runs-on: [self-hosted, servr-dev2]
+    environment: dev
+    concurrency:
+      group: dev-rollout
+      cancel-in-progress: true
+    env: { SERVR_HOME: /home/dcversus/servr-dev }
+    steps:
+      - name: GHCR login (pull)
+        run: |
+          docker logout ghcr.io || true
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Roll out PR image
+        run: |
+          repo_lc=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          cd "$SERVR_HOME"
+          docker pull "ghcr.io/${repo_lc}:sha-${GITHUB_SHA::7}"
+          svc_image=$(docker compose config pms-dummy 2>/dev/null | sed -n 's/^ *image: *//p' | head -1)
+          [ -n "$svc_image" ] || svc_image="ghcr.io/${repo_lc}:dev"
+          docker tag "ghcr.io/${repo_lc}:sha-${GITHUB_SHA::7}" "$svc_image"
+          docker compose up -d --no-deps pms-dummy
+          want_id=$(docker image inspect "ghcr.io/${repo_lc}:sha-${GITHUB_SHA::7}" --format '{{.Id}}')
+          got_id=$(docker inspect "$(docker compose ps -q pms-dummy)" --format '{{.Image}}')
+          if [ "$want_id" != "$got_id" ]; then
+            echo "rollout no-op: pms-dummy runs ${got_id}, expected ${want_id}" >&2
+            exit 1
+          fi
+          for i in $(seq 1 20); do
+            if docker compose exec -T pms-dummy wget -qO- http://127.0.0.1/healthz >/dev/null 2>&1; then echo "ok"; exit 0; fi
+            sleep 3
+          done
+          echo "pms-dummy not ready" >&2; exit 1
+
+  # ── blackbox e2e against the live public URL after either deploy lane ──
+  e2e-blackbox:
+    name: e2e blackbox
+    needs: [deploy-dev, deploy-dev-pr]
+    if: always() && (needs.deploy-dev.result == 'success' || needs.deploy-dev-pr.result == 'success')
+    runs-on: [self-hosted, servr-dev2]
+    timeout-minutes: 15
+    container: golang:1.26
+    env:
+      BASE_URL: https://pms-dummy-dev.servr.ai
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 1}
+      - name: go test ./e2e
+        run: go test ./e2e -v -timeout 10m

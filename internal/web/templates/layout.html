@@ -1,0 +1,33 @@
+{{define "layout"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pms-dummy — servr PMS webhook polygon</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="brand"><a href="/dashboard">pms-dummy</a><span class="sub">servr.ai PMS webhook test polygon</span></div>
+  <nav>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/rooms">Rooms</a>
+    <a href="/reservations">Reservations</a>
+    <a href="/settings">Webhook</a>
+    <a href="/outbound">Outbound</a>
+    <a href="/logs/actions">Inbound log</a>
+    <a href="/logs/events">Events log</a>
+    <form method="post" action="/logout" class="inline"><button class="linklike">Log out</button></form>
+  </nav>
+</header>
+<main>
+{{block "content" .}}{{end}}
+</main>
+<footer>
+  <p>Contract docs:
+    <a href="https://api-dev.servr.ai/docs/guides/pms-webhook.html" rel="noopener">PMS webhook guide</a> ·
+    <a href="https://api-dev.servr.ai/docs/guides/pms-rpa.html" rel="noopener">PMS RPA guide</a>
+  </p>
+</footer>
+</body>
+</html>{{end}}

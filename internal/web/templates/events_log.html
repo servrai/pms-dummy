@@ -1,0 +1,27 @@
+{{define "content"}}
+<h1>Outbound events log</h1>
+<p class="muted">Signed events this PMS sent (newest first, max 200), with the response that came back.</p>
+<table class="log">
+  <tr><th>#</th><th>Sent</th><th>Event</th><th>URL</th><th>HTTP</th><th>Took</th><th>Error</th><th>Payload / response</th></tr>
+  {{range .Events}}
+  <tr>
+    <td>{{.ID}}</td>
+    <td>{{.CreatedAt}}</td>
+    <td><code>{{.Event}}</code></td>
+    <td class="wrap">{{.URL}}</td>
+    <td>{{if .ResponseStatus}}<span class="badge">{{.ResponseStatus}}</span>{{else}}—{{end}}</td>
+    <td>{{.DurationMS}} ms</td>
+    <td>{{.Error}}</td>
+    <td>
+      <details>
+        <summary>payload</summary>
+        <pre>{{.PayloadJSON}}</pre>
+        {{if .ResponseBody}}<summary>response</summary><pre>{{.ResponseBody}}</pre>{{end}}
+      </details>
+    </td>
+  </tr>
+  {{else}}
+  <tr><td colspan="8" class="muted">Nothing sent yet.</td></tr>
+  {{end}}
+</table>
+{{end}}

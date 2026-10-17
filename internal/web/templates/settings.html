@@ -1,0 +1,82 @@
+{{define "content"}}
+<h1>Webhook settings</h1>
+{{if .Msg}}<p class="flash">{{.Msg}}</p>{{end}}
+{{if .Err}}<p class="flash err">{{.Err}}</p>{{end}}
+
+<div class="card">
+  <h2>servr.ai integration (webhook mode)</h2>
+  <p class="muted">Mirror of Hotel Settings → Integrations → PMS on the servr side. Paste the values below
+  into servr (dev: <a href="https://hotel-dev.servr.ai" rel="noopener">hotel-dev</a>) to wire this PMS in.</p>
+  <form method="post" action="/settings" class="grid">
+    <label>servr inbound webhook base URL
+      <input name="servr_base_url" required value="{{.Settings.ServrBaseURL}}">
+    </label>
+    <label>Hotel code (path segment on the servr endpoint)
+      <input name="hotel_code" required value="{{.Settings.HotelCode}}">
+    </label>
+    <label>This PMS host (shown to servr)
+      <input value="{{if .OwnBase}}{{.OwnBase}}{{else}}(set PMS_DUMMY_OWN_BASE_URL){{end}}" disabled>
+    </label>
+    <label>Deliveries path (servr POSTs actions here)
+      <input name="path_actions" required value="{{.Settings.PathActions}}">
+    </label>
+    <label>Reservations path (servr GETs records here)
+      <input name="path_get_reservation" required value="{{.Settings.PathGetReservation}}">
+    </label>
+    <label class="check"><input type="checkbox" name="inbound_active" {{if .Settings.InboundActive}}checked{{end}}> Integration active (master switch)</label>
+    <label class="check"><input type="checkbox" name="confirm_after_apply" {{if .Settings.ConfirmAfterApply}}checked{{end}}> Send action.confirm after a synced inbound action</label>
+    <label class="check"><input type="checkbox" name="sync_after_mutation" {{if .Settings.SyncAfterMutation}}checked{{end}}> Push reservation.sync after every UI mutation</label>
+    <label>Set signing secret (optional paste — overrides the generated one)
+      <input name="signing_secret" type="password" placeholder="leave blank to keep current">
+    </label>
+    <div class="wide">
+      <button class="primary" type="submit">Save settings</button>
+    </div>
+  </form>
+  <hr>
+  <p>Signing secret: current one is hidden.
+    <form method="post" action="/settings/secret/regenerate" class="inline">
+      <button>Regenerate secret (shown once)</button>
+    </form>
+    → then paste it into servr's PMS settings.</p>
+</div>
+
+<div class="card">
+  <h2>Fault injection (polygon controls)</h2>
+  <p class="muted">Applies to the deliveries endpoint. Use these to exercise servr's retry / backoff /
+  error-handling semantics:</p>
+  <ul class="muted">
+    <li><b>force_500</b> — transport failure: servr retries with backoff, then parks for staff retry.</li>
+    <li><b>timeout</b> — hold the connection 65 s (past servr's client timeout).</li>
+    <li><b>delay</b> — answer normally after N ms.</li>
+    <li><b>respond_error_code</b> — clean error body with a chosen <code>action_error_code</code> (delivery closes as failed).</li>
+  </ul>
+  <form method="post" action="/settings" class="grid">
+    <input type="hidden" name="servr_base_url" value="{{.Settings.ServrBaseURL}}">
+    <input type="hidden" name="hotel_code" value="{{.Settings.HotelCode}}">
+    <input type="hidden" name="path_actions" value="{{.Settings.PathActions}}">
+    <input type="hidden" name="path_get_reservation" value="{{.Settings.PathGetReservation}}">
+    {{if .Settings.InboundActive}}<input type="hidden" name="inbound_active" value="on">{{end}}
+    {{if .Settings.ConfirmAfterApply}}<input type="hidden" name="confirm_after_apply" value="on">{{end}}
+    {{if .Settings.SyncAfterMutation}}<input type="hidden" name="sync_after_mutation" value="on">{{end}}
+    <label>Fault mode
+      <select name="fault_mode">
+        {{$cur := .Settings.FaultMode}}
+        {{range .ModeList}}
+          <option value="{{.}}" {{if eq . $cur}}selected{{end}}>{{.}}</option>
+        {{end}}
+      </select>
+    </label>
+    <label>Delay (ms, for delay mode) <input name="fault_delay_ms" type="number" min="0" value="{{.Settings.FaultDelayMS}}"></label>
+    <label>Fault error code
+      <select name="fault_error_code">
+        {{$code := .Settings.FaultErrorCode}}
+        {{range .Codes}}
+          <option value="{{.}}" {{if eq . $code}}selected{{end}}>{{.}}</option>
+        {{end}}
+      </select>
+    </label>
+    <div class="wide"><button class="primary" type="submit">Apply fault settings</button></div>
+  </form>
+</div>
+{{end}}

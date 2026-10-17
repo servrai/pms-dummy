@@ -1,0 +1,17 @@
+{{define "content"}}
+<section class="card narrow">
+  <h1>Sign in</h1>
+  <p class="muted">pms-dummy has a single admin identity and no credentials.</p>
+  <form method="post" action="/login">
+    <label>Login
+      <input name="login" type="text" disabled placeholder="not wired">
+    </label>
+    <label>Password
+      <input name="password" type="password" disabled placeholder="not wired">
+    </label>
+    <button disabled>Login</button>
+    <hr>
+    <button name="mode" value="admin" class="primary">Enter as admin</button>
+  </form>
+</section>
+{{end}}

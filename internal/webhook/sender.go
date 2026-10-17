@@ -22,11 +22,13 @@ type Sender struct {
 
 // NewSender builds a sender that never follows redirects (a 3xx from servr
 // counts as failure on their side; ours should surface it, not chase it).
+// 60s total: servr processes a reservation.sync manifest synchronously — a
+// few hundred lines against a well-populated hotel takes well over 15s.
 func NewSender(st *store.Store) *Sender {
 	return &Sender{
 		Store: st,
 		Client: &http.Client{
-			Timeout: 15 * time.Second,
+			Timeout: 60 * time.Second,
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				return http.ErrUseLastResponse
 			},

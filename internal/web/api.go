@@ -86,7 +86,8 @@ func (s *Server) logFaultedDelivery(r *http.Request, httpStatus int, fault strin
 func int64Ptr(i int) *int64 { v := int64(i); return &v }
 
 // handleGetRecord answers servr's reservation read. 404 = deleted (servr then
-// cancels pre-arrival bookings locally).
+// cancels pre-arrival bookings locally). Reads are logged in the activity
+// view too — the polygon's whole point is seeing what servr did.
 func (s *Server) handleGetRecord(ref string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		resv, err := s.Store.ReservationByBookingRef(ref)
@@ -95,11 +96,27 @@ func (s *Server) handleGetRecord(ref string) http.HandlerFunc {
 			return
 		}
 		if resv == nil {
+			s.logRead(r, ref, 404, "reservation not found")
 			writeJSON(w, 404, []byte(`{"error":"reservation not found"}`))
 			return
 		}
+		s.logRead(r, ref, 200, "")
 		writeJSON(w, 200, mustJSON(pms.BuildRecord(resv)))
 	}
+}
+
+// logRead records a GET read in the actions log (distinguished from POST
+// deliveries by a synthetic request id).
+func (s *Server) logRead(r *http.Request, ref string, status int, errMsg string) {
+	num, line, _ := store.ParseBookingRef(ref)
+	_, _ = s.Store.InsertAction(&store.Action{
+		RequestID:         "read-" + ref + "-" + time.Now().UTC().Format("150405.000000000"),
+		ActionType:        "get_reservation (GET read)",
+		BookingRef:        ref,
+		ReservationNumber: num, LineNumber: &line,
+		PayloadJSON:  store.PrettyJSON(map[string]string{"method": "GET", "path": r.URL.Path}),
+		Status:       "synced", HTTPStatus: int64Ptr(status), ErrorMessage: errMsg,
+	})
 }
 
 // handleEcho is the self-loop target: it verifies the sender's signature with

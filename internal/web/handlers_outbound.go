@@ -65,6 +65,12 @@ func (s *Server) handleOutboundSend(w http.ResponseWriter, r *http.Request) {
 			seeOther(w, r, "/outbound", "booking ref is required")
 			return
 		}
+		if resv, _ := s.Store.ReservationByBookingRef(ref); resv != nil {
+			if err := s.Store.DeleteReservation(resv.ID); err != nil {
+				seeOther(w, r, "/outbound", "local delete failed: "+err.Error())
+				return
+			}
+		}
 		s.Sender.Send("reservation.deleted", pms.DeletedData{BookingRef: ref})
 	case "action.confirm":
 		if requestID == "" {

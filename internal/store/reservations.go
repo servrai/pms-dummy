@@ -111,8 +111,32 @@ func (s *Store) ReservationByRef(number string, line int64) (*Reservation, error
 	return r, err
 }
 
-// ReservationByBookingRef parses "<number>-<line>" (or bare number → line 1).
+// ReservationByBookingRef resolves a booking ref against the store: exact
+// reservation_number first (numbers may themselves contain dashes —
+// "WHPOLY-1" is a number, not number WHPOLY line 1), then the
+// "<number>-<line>" split (bare number → line 1).
 func (s *Store) ReservationByBookingRef(ref string) (*Reservation, error) {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return nil, nil
+	}
+	rows, err := s.db.Query(`SELECT `+resvCols+` FROM reservations WHERE reservation_number=?`, ref)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		r, scanErr := scanReservation(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		if r.LineNumber == 1 {
+			return r, nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	number, line, err := ParseBookingRef(ref)
 	if err != nil {
 		return nil, nil

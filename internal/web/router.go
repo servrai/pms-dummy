@@ -56,6 +56,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.Gate.Wrap(s.handleGetRecord(ref))(w, r)
 		return
 	}
+	if r.URL.Path == e2eReservationsPath {
+		s.handleE2EReservation(w, r) // signs per hotel_code, so not the Gate
+		return
+	}
 	if r.URL.Path == "/dev/echo" && r.Method == http.MethodPost {
 		s.Gate.Wrap(s.handleEcho)(w, r)
 		return

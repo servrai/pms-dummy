@@ -11,6 +11,7 @@
     <tr><th>Guest</th><td>{{$r.GuestName}} · {{$r.NationCode}} · {{$r.GuestEmail}} · {{$r.GuestPhone}}</td></tr>
     <tr><th>Dates</th><td>{{$r.ArrivalDate}} → {{$r.DepartureDate}}</td></tr>
     <tr><th>Room</th><td>{{if $r.RoomNumber}}{{$r.RoomNumber}}{{else}}unassigned{{end}}</td></tr>
+    <tr><th>Room type</th><td>{{if $r.RoomCategory}}{{$r.RoomCategory}}{{else}}—{{end}}</td></tr>
     <tr><th>Occupancy</th><td>{{$r.Adults}} adults, {{$r.Children}} children, {{$r.RoomQuantity}} room(s)</td></tr>
     <tr><th>Rate</th><td>{{$r.RoomRate}} {{$r.RateCode}}</td></tr>
     <tr><th>Group</th><td>{{if $r.GroupCode}}{{$r.GroupCode}}{{else}}—{{end}}</td></tr>

@@ -13,6 +13,7 @@ type Record struct {
 	ArrivalDate            string   `json:"ArrivalDate"`
 	DepartureDate          string   `json:"DepartureDate"`
 	RoomNumber             *string  `json:"RoomNumber"`
+	RoomCategoryCode       string   `json:"RoomCategoryCode,omitempty"`
 	Status                 string   `json:"Status"`
 	ReservationStatusSource string  `json:"ReservationStatusSource"`
 	Guest                  RecordGuest `json:"Guest"`
@@ -73,6 +74,7 @@ func BuildRecord(r *store.Reservation) Record {
 		ArrivalDate:             r.ArrivalDate,
 		DepartureDate:           r.DepartureDate,
 		RoomNumber:              room,
+		RoomCategoryCode:        r.RoomCategory,
 		Status:                  r.Status,
 		ReservationStatusSource: "pms",
 		Guest: RecordGuest{
@@ -113,6 +115,7 @@ type ManifestLine struct {
 	ArrivalDate       string  `json:"ArrivalDate"`
 	DepartureDate     string  `json:"DepartureDate"`
 	RoomNumber        string  `json:"RoomNumber,omitempty"`
+	RoomCategoryCode  string  `json:"RoomCategoryCode,omitempty"`
 	RoomQuantity      int64   `json:"RoomQuantity,omitempty"`
 	AdultCount        int64   `json:"AdultCount,omitempty"`
 	ChildCount        int64   `json:"ChildCount,omitempty"`
@@ -147,6 +150,7 @@ func BuildManifest(res []store.Reservation, rooms []store.Room) SyncManifest {
 			ArrivalDate:       r.ArrivalDate,
 			DepartureDate:     r.DepartureDate,
 			RoomNumber:        r.RoomNumber,
+			RoomCategoryCode:  r.RoomCategory,
 			RoomQuantity:      r.RoomQuantity,
 			AdultCount:        r.Adults,
 			ChildCount:        r.Children,

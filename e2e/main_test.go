@@ -479,8 +479,67 @@ func TestPolygon(t *testing.T) {
 		}
 	})
 
+	var apiResvID int64
+	t.Run("e2e reservations API", func(t *testing.T) {
+		// hotel_code is "echo" for the whole run (see the secret install step),
+		// so the outbound sync + record land on our own signature-gated
+		// /dev/echo instead of servr.
+		body := map[string]any{
+			"hotel_code":  "echo",
+			"booking_ref": s.prefix + "API",
+			"guest": map[string]any{
+				"first_name": "Api", "last_name": "Guest",
+				"email": "api@example.com", "phone": "+1555", "nationality": "ID",
+			},
+			"arrival_date":   time.Now().UTC().Format("2006-01-02"),
+			"departure_date": time.Now().UTC().AddDate(0, 0, 1).Format("2006-01-02"),
+			"adults":         2, "children": 0, "room_type": "STD",
+		}
+		status, resp := s.signedJSON("POST", "/api/e2e/reservations", body)
+		if status != 201 {
+			t.Fatalf("create = %d %s", status, resp)
+		}
+		var out struct {
+			BookingRef    string `json:"booking_ref"`
+			ReservationID int64  `json:"reservation_id"`
+			Status        string `json:"status"`
+			Delivered     bool   `json:"delivered"`
+		}
+		if err := json.Unmarshal([]byte(resp), &out); err != nil {
+			t.Fatalf("response not JSON: %s", resp)
+		}
+		apiResvID = out.ReservationID
+		if out.BookingRef != s.prefix+"API" || out.Status != "Reserved" || !out.Delivered {
+			t.Fatalf("response = %s", resp)
+		}
+		_, view := s.get("/reservations?id=" + strconv.FormatInt(out.ReservationID, 10))
+		mustContain(t, view, "STD", "API reservation room type")
+		_, events := s.get("/logs/events")
+		mustContain(t, events, "reservation.record", "events log shows record")
+
+		if status, _ := s.signedJSON("POST", "/api/e2e/reservations", body); status != 409 {
+			t.Fatalf("duplicate = %d, want 409", status)
+		}
+		body["hotel_code"] = "NOPE"
+		if status, _ := s.signedJSON("POST", "/api/e2e/reservations", body); status != 404 {
+			t.Fatalf("unknown hotel = %d, want 404", status)
+		}
+		body["hotel_code"] = "echo"
+		body["arrival_date"] = "tomorrow"
+		if status, _ := s.signedJSON("POST", "/api/e2e/reservations", body); status != 422 {
+			t.Fatalf("invalid date = %d, want 422", status)
+		}
+		req, _ := http.NewRequest("POST", baseURL+"/api/e2e/reservations", strings.NewReader(`{"hotel_code":"echo"}`))
+		if status, _ := s.do(req); status != 401 {
+			t.Fatalf("unsigned = %d, want 401", status)
+		}
+	})
+
 	t.Run("cleanup", func(t *testing.T) {
 		s.postForm("/reservations/delete", url.Values{"id": {strconv.FormatInt(s.resvID, 10)}})
+		if apiResvID > 0 {
+			s.postForm("/reservations/delete", url.Values{"id": {strconv.FormatInt(apiResvID, 10)}})
+		}
 		s.postForm("/rooms/delete", url.Values{"id": {s.roomIDFromList()}})
 		s.postForm("/settings", s.settingsForm(map[string]string{
 			"servr_base_url": "https://api-dev.servr.ai/api/integration/webhook",

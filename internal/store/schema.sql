@@ -1,4 +1,5 @@
--- pms-dummy schema, applied once via PRAGMA user_version = 1.
+-- pms-dummy schema v1, applied once via PRAGMA user_version = 1.
+-- Later versions are ALTERs in store.go migrate() (v2: reservations.room_category).
 
 CREATE TABLE rooms (
   id         INTEGER PRIMARY KEY,

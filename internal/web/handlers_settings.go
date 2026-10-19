@@ -30,6 +30,7 @@ var reservedUIPaths = map[string]bool{
 	"/logs/actions": true, "/logs/events": true,
 	"/outbound": true, "/outbound/send": true,
 	"/dev/echo": true, "/healthz": true, "/static": true,
+	e2eReservationsPath: true,
 }
 
 var faultModes = []string{"normal", "force_500", "timeout", "delay", "respond_error_code"}

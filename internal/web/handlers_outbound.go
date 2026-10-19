@@ -41,25 +41,17 @@ func (s *Server) handleOutboundSend(w http.ResponseWriter, r *http.Request) {
 
 	switch event {
 	case "reservation.sync":
-		resvs, err := s.Store.ListReservations()
-		if err != nil {
+		if _, err := s.pushManifest(); err != nil {
 			seeOther(w, r, "/outbound", "load failed: "+err.Error())
 			return
 		}
-		rooms, _ := s.Store.ListRooms()
-		s.Sender.Send("reservation.sync", pms.BuildManifest(resvs, rooms))
 	case "reservation.record":
 		resv, err := s.Store.ReservationByBookingRef(ref)
 		if err != nil || resv == nil {
 			seeOther(w, r, "/outbound", "no reservation for booking ref "+ref)
 			return
 		}
-		ok := s.Sender.Send("reservation.record", pms.BuildRecord(resv))
-		if ok {
-			_ = s.Store.SetReservationSync(resv.ID, "synced")
-		} else {
-			_ = s.Store.SetReservationSync(resv.ID, "error")
-		}
+		s.pushRecord(resv)
 	case "reservation.deleted":
 		if ref == "" {
 			seeOther(w, r, "/outbound", "booking ref is required")
@@ -92,10 +84,5 @@ func (s *Server) maybeSyncAfterMutation() {
 	if err != nil || !st.SyncAfterMutation {
 		return
 	}
-	resvs, err := s.Store.ListReservations()
-	if err != nil {
-		return
-	}
-	rooms, _ := s.Store.ListRooms()
-	go s.Sender.Send("reservation.sync", pms.BuildManifest(resvs, rooms))
+	go func() { _, _ = s.pushManifest() }()
 }

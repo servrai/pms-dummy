@@ -45,14 +45,23 @@ func (s *Store) migrate() error {
 	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil {
 		return fmt.Errorf("read user_version: %w", err)
 	}
-	if version >= 1 {
-		return nil
+	if version < 1 {
+		if _, err := s.db.Exec(schemaSQL); err != nil {
+			return fmt.Errorf("apply schema v1: %w", err)
+		}
+		if _, err := s.db.Exec(`PRAGMA user_version = 1`); err != nil {
+			return fmt.Errorf("set user_version: %w", err)
+		}
+		version = 1
 	}
-	if _, err := s.db.Exec(schemaSQL); err != nil {
-		return fmt.Errorf("apply schema v1: %w", err)
-	}
-	if _, err := s.db.Exec(`PRAGMA user_version = 1`); err != nil {
-		return fmt.Errorf("set user_version: %w", err)
+	if version < 2 {
+		// v2: per-reservation room type (servr RoomCategoryCode).
+		if _, err := s.db.Exec(`ALTER TABLE reservations ADD COLUMN room_category TEXT NOT NULL DEFAULT ''`); err != nil {
+			return fmt.Errorf("apply schema v2: %w", err)
+		}
+		if _, err := s.db.Exec(`PRAGMA user_version = 2`); err != nil {
+			return fmt.Errorf("set user_version: %w", err)
+		}
 	}
 	return nil
 }

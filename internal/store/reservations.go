@@ -22,6 +22,7 @@ type Reservation struct {
 	ArrivalDate       string
 	DepartureDate     string
 	RoomNumber        string
+	RoomCategory      string // room type code, sent to servr as RoomCategoryCode
 	Adults            int64
 	Children          int64
 	RoomQuantity      int64
@@ -57,7 +58,7 @@ const resvCols = `id, reservation_number, line_number, status,
 	room_rate, rate_code, remark, group_code,
 	checked_in_at, checked_out_at, checked_out_by, cancelled_at,
 	cancel_reason_code, cancel_reason_text, sync_status, last_synced_at,
-	created_at, updated_at`
+	created_at, updated_at, room_category`
 
 func scanReservation(row interface{ Scan(...any) error }) (*Reservation, error) {
 	var r Reservation
@@ -67,7 +68,7 @@ func scanReservation(row interface{ Scan(...any) error }) (*Reservation, error) 
 		&r.RoomRate, &r.RateCode, &r.Remark, &r.GroupCode,
 		&r.CheckedInAt, &r.CheckedOutAt, &r.CheckedOutBy, &r.CancelledAt,
 		&r.CancelReasonCode, &r.CancelReasonText, &r.SyncStatus, &r.LastSyncedAt,
-		&r.CreatedAt, &r.UpdatedAt)
+		&r.CreatedAt, &r.UpdatedAt, &r.RoomCategory)
 	if err != nil {
 		return nil, err
 	}
@@ -167,14 +168,14 @@ func (s *Store) CreateReservation(r *Reservation) (int64, error) {
 		arrival_date, departure_date, room_number, adults, children, room_quantity,
 		room_rate, rate_code, remark, group_code,
 		checked_in_at, checked_out_at, checked_out_by, cancelled_at,
-		cancel_reason_code, cancel_reason_text, sync_status, created_at, updated_at)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		cancel_reason_code, cancel_reason_text, sync_status, created_at, updated_at, room_category)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		r.ReservationNumber, r.LineNumber, r.Status,
 		r.GuestFirstName, r.GuestSurname, r.GuestEmail, r.GuestPhone, r.NationCode,
 		r.ArrivalDate, r.DepartureDate, r.RoomNumber, r.Adults, r.Children, r.RoomQuantity,
 		r.RoomRate, r.RateCode, r.Remark, r.GroupCode,
 		r.CheckedInAt, r.CheckedOutAt, r.CheckedOutBy, r.CancelledAt,
-		r.CancelReasonCode, r.CancelReasonText, "local", now, now)
+		r.CancelReasonCode, r.CancelReasonText, "local", now, now, r.RoomCategory)
 	if err != nil {
 		return 0, err
 	}
@@ -191,14 +192,14 @@ func (s *Store) UpdateReservation(r *Reservation) error {
 		arrival_date=?, departure_date=?, room_number=?, adults=?, children=?, room_quantity=?,
 		room_rate=?, rate_code=?, remark=?, group_code=?,
 		checked_in_at=?, checked_out_at=?, checked_out_by=?, cancelled_at=?,
-		cancel_reason_code=?, cancel_reason_text=?, sync_status=?, updated_at=?
+		cancel_reason_code=?, cancel_reason_text=?, sync_status=?, updated_at=?, room_category=?
 		WHERE id=?`,
 		r.ReservationNumber, r.LineNumber, r.Status,
 		r.GuestFirstName, r.GuestSurname, r.GuestEmail, r.GuestPhone, r.NationCode,
 		r.ArrivalDate, r.DepartureDate, r.RoomNumber, r.Adults, r.Children, r.RoomQuantity,
 		r.RoomRate, r.RateCode, r.Remark, r.GroupCode,
 		r.CheckedInAt, r.CheckedOutAt, r.CheckedOutBy, r.CancelledAt,
-		r.CancelReasonCode, r.CancelReasonText, "local", Now(), r.ID)
+		r.CancelReasonCode, r.CancelReasonText, "local", Now(), r.RoomCategory, r.ID)
 	return err
 }
 

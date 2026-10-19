@@ -23,6 +23,7 @@
         {{range .Rooms}}<option value="{{.Number}}" {{if eq .Number $cur}}selected{{end}}>{{.Number}} ({{.Status}})</option>{{end}}
       </select>
     </label>
+    <label>Room type <input name="room_category" value="{{if .Edit}}{{.Edit.RoomCategory}}{{end}}" placeholder="STD"></label>
     <label>Adults <input name="adults" type="number" min="1" value="{{if .Edit}}{{.Edit.Adults}}{{else}}1{{end}}"></label>
     <label>Children <input name="children" type="number" min="0" value="{{if .Edit}}{{.Edit.Children}}{{else}}0{{end}}"></label>
     <label>Room quantity <input name="room_quantity" type="number" min="1" value="{{if .Edit}}{{.Edit.RoomQuantity}}{{else}}1{{end}}"></label>

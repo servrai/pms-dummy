@@ -60,6 +60,7 @@ func reservationFromForm(r *http.Request, base *store.Reservation) *store.Reserv
 	resv.ArrivalDate = v("arrival_date")
 	resv.DepartureDate = v("departure_date")
 	resv.RoomNumber = v("room_number")
+	resv.RoomCategory = v("room_category")
 	resv.Adults, _ = strconv.ParseInt(v("adults"), 10, 64)
 	if resv.Adults < 1 {
 		resv.Adults = 1
@@ -99,22 +100,18 @@ func (s *Server) handleReservationSave(w http.ResponseWriter, r *http.Request) {
 		base = *existing
 	}
 	resv := reservationFromForm(r, &base)
-	if resv.ReservationNumber == "" {
-		seeOther(w, r, "/reservations", "reservation number is required")
-		return
-	}
-	if resv.ArrivalDate == "" || resv.DepartureDate == "" || resv.DepartureDate < resv.ArrivalDate {
-		seeOther(w, r, "/reservations", "arrival/departure dates invalid (departure must be ≥ arrival)")
-		return
-	}
 	if creating {
-		newID, err := s.Store.CreateReservation(resv)
+		newID, err := s.createReservation(resv)
 		if err != nil {
-			seeOther(w, r, "/reservations", "create failed: "+err.Error())
+			seeOther(w, r, "/reservations", err.Error())
 			return
 		}
 		id = newID
 	} else {
+		if err := validateReservation(resv); err != nil {
+			seeOther(w, r, "/reservations", err.Error())
+			return
+		}
 		if err := s.Store.UpdateReservation(resv); err != nil {
 			seeOther(w, r, "/reservations", "update failed: "+err.Error())
 			return

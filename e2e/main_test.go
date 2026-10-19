@@ -116,12 +116,14 @@ func (s *state) settingsForm(kv map[string]string) url.Values {
 }
 
 // setFault posts the fault-injection form (which carries the integration
-// fields as hidden inputs).
+// fields as hidden inputs). The outbound target stays on the run's own
+// /dev/echo self-loop — resetting it to servr here would send the later
+// subtests' events to the real dev API.
 func (s *state) setFault(mode, code string) {
 	s.t.Helper()
 	v := url.Values{
-		"servr_base_url":       {"https://api-dev.servr.ai/api/integration/webhook"},
-		"hotel_code":           {"DUMMY"},
+		"servr_base_url":       {baseURL + "/dev"},
+		"hotel_code":           {"echo"},
 		"path_actions":         {"/actions"},
 		"path_get_reservation": {"/pms/reservations/{booking_ref}"},
 		"inbound_active":       {"on"},

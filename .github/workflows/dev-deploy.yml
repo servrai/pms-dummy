@@ -163,8 +163,14 @@ jobs:
     if: always() && (needs.deploy-dev.result == 'success' || needs.deploy-dev-pr.result == 'success')
     runs-on: [self-hosted, servr-dev2]
     timeout-minutes: 15
-    container: golang:1.26
+    # Run the job container as the runner user (uid 1000 on dev2). As root it
+    # left root-owned files across the bind-mounted workspace (_work/.git, go
+    # caches) and the next job's checkout died with EACCES (2026-10-21).
+    container:
+      image: golang:1.26
+      options: --user 1000
     env:
+      HOME: /github/home
       BASE_URL: https://pms-dummy-dev.servr.ai
     steps:
       - uses: actions/checkout@v4

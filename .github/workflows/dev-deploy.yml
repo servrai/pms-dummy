@@ -27,6 +27,11 @@ jobs:
        github.event.action != 'closed' &&
        github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: [self-hosted, servr-dev2]
+    env:
+      # All dev2 units share ~/.docker/buildx as one user; pin the builder so
+      # this job never lands on (or fights over) another repo's buildkitd via
+      # the shared "current builder" pointer (2026-10-21 guest CI incident).
+      BUILDX_BUILDER: pms-dummy-builder
     concurrency:
       # Serialize same-repo builds: the single named buildx builder cannot
       # boot under a concurrent job.
@@ -158,8 +163,14 @@ jobs:
     if: always() && (needs.deploy-dev.result == 'success' || needs.deploy-dev-pr.result == 'success')
     runs-on: [self-hosted, servr-dev2]
     timeout-minutes: 15
-    container: golang:1.26
+    # Run the job container as the runner user (uid 1000 on dev2). As root it
+    # left root-owned files across the bind-mounted workspace (_work/.git, go
+    # caches) and the next job's checkout died with EACCES (2026-10-21).
+    container:
+      image: golang:1.26
+      options: --user 1000
     env:
+      HOME: /github/home
       BASE_URL: https://pms-dummy-dev.servr.ai
     steps:
       - uses: actions/checkout@v4

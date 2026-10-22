@@ -38,7 +38,7 @@ jobs:
       group: buildx-pms-dummy
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v3
         with:
           driver: docker-container
@@ -173,7 +173,7 @@ jobs:
       HOME: /github/home
       BASE_URL: https://pms-dummy-dev.servr.ai
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with: {fetch-depth: 1}
       - name: go test ./e2e
         run: go test ./e2e -v -timeout 10m

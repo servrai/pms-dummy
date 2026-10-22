@@ -52,7 +52,7 @@ jobs:
               all = true
               reservedSpace = "10GB"
               maxUsedSpace = "20GB"
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
       - name: Derive tags
         id: tags

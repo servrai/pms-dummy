@@ -65,13 +65,18 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          push: true
+          load: true
           provenance: false
           cache-from: type=local,src=/home/dcversus/.buildx-cache/pms-dummy
           cache-to: type=local,dest=/home/dcversus/.buildx-cache/pms-dummy,mode=max,reset=true
           tags: |
             ${{ steps.tags.outputs.dev }}
             ${{ steps.tags.outputs.sha }}
+
+      - name: Push tags (host registry)
+        run: |
+          docker push "${{ steps.tags.outputs.dev }}"
+          docker push "${{ steps.tags.outputs.sha }}"
 
   deploy-dev:
     name: deploy dev
@@ -84,6 +89,7 @@ jobs:
       cancel-in-progress: true
     env: { SERVR_HOME: /home/dcversus/servr-dev }
     steps:
+
       - name: Pull & restart pms-dummy
         run: |
           repo_lc=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')

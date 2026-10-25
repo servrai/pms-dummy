@@ -52,18 +52,16 @@ jobs:
               all = true
               reservedSpace = "10GB"
               maxUsedSpace = "20GB"
-      - uses: docker/login-action@v3
-        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
       - name: Derive tags
         id: tags
         run: |
           repo_lc=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "dev=ghcr.io/${repo_lc}:pr-${{ github.number }}" >> "$GITHUB_OUTPUT"
+            echo "dev=localhost:5000/${repo_lc}:pr-${{ github.number }}" >> "$GITHUB_OUTPUT"
           else
-            echo "dev=ghcr.io/${repo_lc}:dev" >> "$GITHUB_OUTPUT"
+            echo "dev=localhost:5000/${repo_lc}:dev" >> "$GITHUB_OUTPUT"
           fi
-          echo "sha=ghcr.io/${repo_lc}:sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "sha=localhost:5000/${repo_lc}:sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v6
         with:
           context: .
@@ -86,24 +84,20 @@ jobs:
       cancel-in-progress: true
     env: { SERVR_HOME: /home/dcversus/servr-dev }
     steps:
-      - name: GHCR login (pull)
-        run: |
-          docker logout ghcr.io || true
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       - name: Pull & restart pms-dummy
         run: |
           repo_lc=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           cd "$SERVR_HOME"
           # Deploy THIS run's immutable :sha tag — the mutable :dev tag can be
           # overwritten by an out-of-order build.
-          docker pull "ghcr.io/${repo_lc}:sha-${GITHUB_SHA::7}"
+          docker pull "localhost:5000/${repo_lc}:sha-${GITHUB_SHA::7}"
           # Retag onto the image ref the VM's compose file pins, then roll.
           svc_image=$(docker compose config pms-dummy 2>/dev/null | sed -n 's/^ *image: *//p' | head -1)
-          [ -n "$svc_image" ] || svc_image="ghcr.io/${repo_lc}:dev"
-          docker tag "ghcr.io/${repo_lc}:sha-${GITHUB_SHA::7}" "$svc_image"
+          [ -n "$svc_image" ] || svc_image="localhost:5000/${repo_lc}:dev"
+          docker tag "localhost:5000/${repo_lc}:sha-${GITHUB_SHA::7}" "$svc_image"
           docker compose up -d --no-deps pms-dummy
           # Gate 1 — the container must run THIS run's image.
-          want_id=$(docker image inspect "ghcr.io/${repo_lc}:sha-${GITHUB_SHA::7}" --format '{{.Id}}')
+          want_id=$(docker image inspect "localhost:5000/${repo_lc}:sha-${GITHUB_SHA::7}" --format '{{.Id}}')
           got_id=$(docker inspect "$(docker compose ps -q pms-dummy)" --format '{{.Image}}')
           if [ "$want_id" != "$got_id" ]; then
             echo "rollout no-op: pms-dummy runs ${got_id}, expected ${want_id}" >&2
@@ -131,20 +125,16 @@ jobs:
       cancel-in-progress: true
     env: { SERVR_HOME: /home/dcversus/servr-dev }
     steps:
-      - name: GHCR login (pull)
-        run: |
-          docker logout ghcr.io || true
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       - name: Roll out PR image
         run: |
           repo_lc=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           cd "$SERVR_HOME"
-          docker pull "ghcr.io/${repo_lc}:sha-${GITHUB_SHA::7}"
+          docker pull "localhost:5000/${repo_lc}:sha-${GITHUB_SHA::7}"
           svc_image=$(docker compose config pms-dummy 2>/dev/null | sed -n 's/^ *image: *//p' | head -1)
-          [ -n "$svc_image" ] || svc_image="ghcr.io/${repo_lc}:dev"
-          docker tag "ghcr.io/${repo_lc}:sha-${GITHUB_SHA::7}" "$svc_image"
+          [ -n "$svc_image" ] || svc_image="localhost:5000/${repo_lc}:dev"
+          docker tag "localhost:5000/${repo_lc}:sha-${GITHUB_SHA::7}" "$svc_image"
           docker compose up -d --no-deps pms-dummy
-          want_id=$(docker image inspect "ghcr.io/${repo_lc}:sha-${GITHUB_SHA::7}" --format '{{.Id}}')
+          want_id=$(docker image inspect "localhost:5000/${repo_lc}:sha-${GITHUB_SHA::7}" --format '{{.Id}}')
           got_id=$(docker inspect "$(docker compose ps -q pms-dummy)" --format '{{.Image}}')
           if [ "$want_id" != "$got_id" ]; then
             echo "rollout no-op: pms-dummy runs ${got_id}, expected ${want_id}" >&2

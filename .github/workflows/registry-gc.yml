@@ -91,7 +91,7 @@ jobs:
               for t in keep_tags:
                   if t in tags:
                       st, hd, _ = api(f"/v2/{repo}/manifests/{t}", headers={
-                          "Accept": "application/vnd.docker.distribution.manifest.v2+json"})
+                          "Accept": "application/vnd.oci.image.manifest.v1+json"})
                       d = hd.get("Docker-Content-Digest") or hd.get("docker-content-digest")
                       if d:
                           keep_digests.add(d)
@@ -101,7 +101,7 @@ jobs:
                   if t in keep_tags:
                       continue
                   st, hd, _ = api(f"/v2/{repo}/manifests/{t}", headers={
-                      "Accept": "application/vnd.docker.distribution.manifest.v2+json"})
+                      "Accept": "application/vnd.oci.image.manifest.v1+json"})
                   d = hd.get("Docker-Content-Digest") or hd.get("docker-content-digest")
                   if d and d not in keep_digests:
                       stale[d] = t

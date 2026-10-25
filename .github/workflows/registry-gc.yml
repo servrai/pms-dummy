@@ -1,0 +1,118 @@
+name: registry gc
+
+# Keep the registries bounded: per app repo keep ONLY the mutable tags
+# (:dev/:prod), the tags of OPEN pull requests, and the 3 newest :sha-*
+# releases (newest = the last 3 commits on main, per the GitHub API —
+# the registry exposes no creation times). Everything else is deleted by
+# manifest digest. Runs against BOTH self-hosted registries (dev2 + prod),
+# each on its own host so localhost:5000 is the right target.
+
+on:
+  schedule:
+    - cron: "17 3 * * *"   # daily, off the hour
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: registry-gc
+  cancel-in-progress: false
+
+jobs:
+  gc:
+    name: gc (${{ matrix.host }})
+    runs-on: [self-hosted, "${{ matrix.host }}"]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: servr-dev2
+          - host: servr-prod
+    steps:
+      - name: Collect garbage (keep 3 latest shas + dev/prod + open PRs)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ matrix.host }}" = "servr-dev2" ]; then
+            PASS=$(sudo cat /srv/servr-dev-stack/registry-ci.password)
+          else
+            PASS=$(sudo cat /srv/servr-prod-stack/registry-ci.password)
+          fi
+          export REG_USER=servr-ci REG_PASS="$PASS" REG=http://127.0.0.1:5000
+          python3 /dev/stdin <<'PY'
+          import json, os, urllib.request, urllib.error, base64
+
+          REG = os.environ["REG"]
+          AUTH = base64.b64encode(f"{os.environ['REG_USER']}:{os.environ['REG_PASS']}".encode()).decode()
+          REPOS = [__import__("os").environ["GITHUB_REPOSITORY"]]
+          KEEP_SHA = 3
+
+          def api(path, method="GET", headers=None):
+              req = urllib.request.Request(REG + path, method=method)
+              req.add_header("Authorization", "Basic " + AUTH)
+              for k, v in (headers or {}).items():
+                  req.add_header(k, v)
+              try:
+                  with urllib.request.urlopen(req) as r:
+                      return r.status, dict(r.headers), r.read()
+              except urllib.error.HTTPError as e:
+                  return e.code, dict(e.headers), e.read()
+
+          GITHUB_API = "https://api.github.com"
+          def gh(path):
+              req = urllib.request.Request(GITHUB_API + "/" + path)
+              req.add_header("Authorization", "Bearer " + os.environ["GH_TOKEN"])
+              req.add_header("Accept", "application/vnd.github+json")
+              with urllib.request.urlopen(req) as r:
+                  return r.read().decode()
+
+          open_pr_tags = {}
+          for repo in REPOS:
+              short = repo.split("/")[1]
+              try:
+                  nums = json.loads(gh(f"repos/{repo}/pulls?state=open&per_page=100"))
+                  open_pr_tags[short] = {f"pr-{p['number']}" for p in nums}
+              except Exception:
+                  open_pr_tags[short] = set()
+
+          total = 0
+          for repo in REPOS:
+              commits = json.loads(gh(f"repos/{repo}/commits?sha=main&per_page={KEEP_SHA}"))
+              keep_tags = {"dev", "prod", "latest"} | {f"sha-{c['sha'][:7]}" for c in commits} | open_pr_tags[repo.split("/")[1]]
+
+              status, _, body = api(f"/v2/{repo}/tags/list?n=1000")
+              if status != 200:
+                  print(f"{repo}: no tags ({status}) -- skip")
+                  continue
+              tags = json.loads(body).get("tags") or []
+
+              keep_digests = set()
+              for t in keep_tags:
+                  if t in tags:
+                      st, hd, _ = api(f"/v2/{repo}/manifests/{t}", headers={
+                          "Accept": "application/vnd.docker.distribution.manifest.v2+json"})
+                      d = hd.get("Docker-Content-Digest") or hd.get("docker-content-digest")
+                      if d:
+                          keep_digests.add(d)
+
+              stale = {}
+              for t in tags:
+                  if t in keep_tags:
+                      continue
+                  st, hd, _ = api(f"/v2/{repo}/manifests/{t}", headers={
+                      "Accept": "application/vnd.docker.distribution.manifest.v2+json"})
+                  d = hd.get("Docker-Content-Digest") or hd.get("docker-content-digest")
+                  if d and d not in keep_digests:
+                      stale[d] = t
+
+              for d, t in stale.items():
+                  st, _, _ = api(f"/v2/{repo}/manifests/{d}", method="DELETE")
+                  if st in (202, 204):
+                      total += 1
+                      print(f"  {repo} {t} -> deleted")
+                  else:
+                      print(f"  {repo} {t} -> kept ({st})")
+
+          print(f"gc: {total} manifest(s) removed")
+          PY

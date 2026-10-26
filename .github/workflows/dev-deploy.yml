@@ -42,9 +42,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       # One heavy job at a time on servr-dev2 (shared with every repo's
-      # builds/e2e): ci/heavy-lock.sh.
+      # builds/e2e): /srv/servr-locks/heavy-lock.sh.
       - name: servr-dev2 heavy-job lock
-        run: ci/heavy-lock.sh acquire
+        run: /srv/servr-locks/heavy-lock.sh acquire
       - uses: docker/setup-buildx-action@v3
         with:
           driver: docker-container
@@ -86,7 +86,7 @@ jobs:
 
       - name: release the servr-dev2 heavy-job lock
         if: always()
-        run: ci/heavy-lock.sh release
+        run: /srv/servr-locks/heavy-lock.sh release
 
   deploy-dev:
     name: deploy dev

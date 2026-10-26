@@ -37,7 +37,7 @@ jobs:
     concurrency:
       # Serialize same-repo builds: the single named buildx builder cannot
       # boot under a concurrent job.
-      group: buildx-pms-dummy
+      group: buildx-pms-dummy-${{ github.ref }}
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4

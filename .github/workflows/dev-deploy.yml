@@ -40,7 +40,7 @@ jobs:
       group: buildx-pms-dummy
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # One heavy job at a time on servr-dev2 (shared with every repo's
       # builds/e2e): /srv/servr-locks/heavy-lock.sh.
       - name: servr-dev2 heavy-job lock
@@ -179,7 +179,7 @@ jobs:
       HOME: /github/home
       BASE_URL: https://pms-dummy-dev.servr.ai
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with: {fetch-depth: 1}
       - name: go test ./e2e
         run: go test ./e2e -v -timeout 10m

@@ -32,6 +32,8 @@ jobs:
       # this job never lands on (or fights over) another repo's buildkitd via
       # the shared "current builder" pointer (2026-10-21 guest CI incident).
       BUILDX_BUILDER: pms-dummy-builder
+      # Host-side job (no container): the lock dir sits at its host path.
+      HEAVY_LOCK: /srv/servr-locks/dev2-heavy.lock
     concurrency:
       # Serialize same-repo builds: the single named buildx builder cannot
       # boot under a concurrent job.
@@ -39,6 +41,10 @@ jobs:
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
+      # One heavy job at a time on servr-dev2 (shared with every repo's
+      # builds/e2e): /srv/servr-locks/heavy-lock.sh.
+      - name: servr-dev2 heavy-job lock
+        run: /srv/servr-locks/heavy-lock.sh acquire
       - uses: docker/setup-buildx-action@v3
         with:
           driver: docker-container
@@ -77,6 +83,10 @@ jobs:
         run: |
           docker push "${{ steps.tags.outputs.dev }}"
           docker push "${{ steps.tags.outputs.sha }}"
+
+      - name: release the servr-dev2 heavy-job lock
+        if: always()
+        run: /srv/servr-locks/heavy-lock.sh release
 
   deploy-dev:
     name: deploy dev

@@ -12,7 +12,10 @@ permissions:
 
 jobs:
   check:
-    runs-on: [self-hosted, servr-dev2]
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, servr-light]
     timeout-minutes: 15
     # Run the job container as the runner user (uid 1000 on dev2). As root it
     # left root-owned files across the bind-mounted workspace (_work/.git, go

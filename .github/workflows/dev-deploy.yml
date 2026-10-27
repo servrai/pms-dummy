@@ -20,6 +20,11 @@ concurrency:
 jobs:
   build_and_deploy:
     name: build & deploy dev
+    # Public repo + self-hosted runner: never run fork PR code on dev2
+    # (restores the pre-refactor guard).
+    if: >-
+      github.event_name == 'push' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, servr-light]
     timeout-minutes: 20
     env:

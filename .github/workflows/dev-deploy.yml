@@ -55,7 +55,7 @@ jobs:
             echo "dev=localhost:5000/${repo_lc}:dev" >> "$GITHUB_OUTPUT"
           fi
           echo "sha=localhost:5000/${repo_lc}:sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: .
           load: true
